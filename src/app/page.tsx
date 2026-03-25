@@ -40,6 +40,16 @@ export default function Home() {
       <div className="relative z-10">
         <HeroSection />
 
+        {/* Navigation to 2D Demo */}
+        <div className="relative z-10 flex justify-center py-8">
+          <a
+            href="/2d-scroll"
+            className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-white font-bold hover:scale-105 transition-transform shadow-lg"
+          >
+            Check out 2D Scroll Demo →
+          </a>
+        </div>
+
         {features.map((feature, i) => (
           <FeatureSection
             key={i}
