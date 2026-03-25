@@ -22,13 +22,7 @@ const fragmentShader = /* glsl */ `
 
   varying vec2 vUv;
 
-  // Soft blob: returns 0..1 falloff from center
-  float blob(vec2 uv, vec2 center, float radius) {
-    float d = length(uv - center) / radius;
-    return exp(-d * d * 2.0);
-  }
-
-  // Simple noise for gentle organic wobble
+  // Noise functions (must be defined before blob)
   vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
   vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
   vec3 permute(vec3 x) { return mod289(((x * 34.0) + 1.0) * x); }
@@ -55,67 +49,97 @@ const fragmentShader = /* glsl */ `
     return 130.0 * dot(m, g);
   }
 
+  // Organic blob: shape warped by spatial noise for smooth morphing
+  float blob(vec2 uv, vec2 center, float radius, float seed) {
+    vec2 diff = uv - center;
+    // Warp the position with smooth spatial noise — no angular spikes
+    vec2 warp = vec2(
+      snoise(uv * 1.8 + vec2(seed, uTime * 0.12)),
+      snoise(uv * 1.8 + vec2(uTime * 0.10, seed + 5.0))
+    ) * 0.12;
+    float d = length(diff + warp) / radius;
+    return exp(-d * d * 2.0);
+  }
+
   void main() {
     vec2 uv = vUv;
     float aspect = uResolution.x / uResolution.y;
     vec2 st = uv;
     st.x *= aspect;
 
-    float t = uTime * 0.1;
+    // Mouse position in aspect-corrected UV space
+    vec2 mouseUV = uMouse * 0.5 + 0.5; // remap -1..1 to 0..1
+    vec2 mouseST = vec2(mouseUV.x * aspect, mouseUV.y);
 
-    // Mouse in UV space: uMouse is -1..1, remap to displacement
-    vec2 mouse = uMouse * vec2(0.5 * aspect, 0.5);
+    // Mouse push/pull: warp the sample point away from cursor
+    vec2 toMouse = st - mouseST;
+    float mouseDist = length(toMouse);
+    float pushStrength = exp(-mouseDist * mouseDist * 3.0) * 0.15;
+    vec2 warpedST = st + normalize(toMouse + 0.001) * pushStrength;
 
-    // Subtle noise for organic wobble on blob positions
-    float nx = snoise(vec2(t * 0.5, 0.0)) * 0.08;
-    float ny = snoise(vec2(0.0, t * 0.4)) * 0.08;
+    // Each blob has independent drift driven by its own noise seed
+    vec2 c1 = vec2(0.25 * aspect, 0.3) + vec2(
+      snoise(vec2(uTime * 0.08, 1.0)) * 0.12,
+      snoise(vec2(1.0, uTime * 0.06)) * 0.10);
+    vec2 c2 = vec2(0.5 * aspect, 0.55) + vec2(
+      snoise(vec2(uTime * 0.07, 3.5)) * 0.10,
+      snoise(vec2(3.5, uTime * 0.09)) * 0.12);
+    vec2 c3 = vec2(0.65 * aspect, 0.7) + vec2(
+      snoise(vec2(uTime * 0.06, 6.0)) * 0.14,
+      snoise(vec2(6.0, uTime * 0.07)) * 0.08);
+    vec2 c4 = vec2(0.8 * aspect, 0.75) + vec2(
+      snoise(vec2(uTime * 0.09, 9.0)) * 0.08,
+      snoise(vec2(9.0, uTime * 0.05)) * 0.12);
+    vec2 c5 = vec2(0.85 * aspect, 0.5) + vec2(
+      snoise(vec2(uTime * 0.05, 12.0)) * 0.10,
+      snoise(vec2(12.0, uTime * 0.08)) * 0.10);
+    vec2 c6 = vec2(0.3 * aspect, 0.65) + vec2(
+      snoise(vec2(uTime * 0.07, 15.0)) * 0.11,
+      snoise(vec2(15.0, uTime * 0.06)) * 0.09);
+    vec2 c7 = vec2(0.4 * aspect, 0.15) + vec2(
+      snoise(vec2(uTime * 0.06, 18.0)) * 0.10,
+      snoise(vec2(18.0, uTime * 0.07)) * 0.12);
 
-    // Define large blob centers — mouse drives them strongly
-    vec2 c1 = vec2(0.25 * aspect, 0.3) + mouse * 0.6 + vec2(nx, ny);            // lower-left: deep orange/red
-    vec2 c2 = vec2(0.5 * aspect, 0.55) + mouse * 0.45 + vec2(-nx * 0.7, ny);    // center: bright orange
-    vec2 c3 = vec2(0.65 * aspect, 0.7) + mouse * 0.35 + vec2(nx, -ny * 0.5);    // upper-center: golden yellow
-    vec2 c4 = vec2(0.8 * aspect, 0.75) + mouse * 0.25 + vec2(-nx, ny * 0.3);    // upper-right: soft yellow/white
-    vec2 c5 = vec2(0.85 * aspect, 0.5) + mouse * 0.3 + vec2(nx * 0.5, -ny);     // right: lavender/pink
+    // Pulsing radii — each blob breathes independently
+    float r1 = 0.65 + snoise(vec2(uTime * 0.12, 2.0)) * 0.08;
+    float r2 = 0.55 + snoise(vec2(uTime * 0.10, 4.0)) * 0.07;
+    float r3 = 0.50 + snoise(vec2(uTime * 0.09, 7.0)) * 0.08;
+    float r4 = 0.45 + snoise(vec2(uTime * 0.11, 10.0)) * 0.06;
+    float r5 = 0.40 + snoise(vec2(uTime * 0.08, 13.0)) * 0.07;
+    float r6 = 0.45 + snoise(vec2(uTime * 0.10, 16.0)) * 0.06;
+    float r7 = 0.50 + snoise(vec2(uTime * 0.09, 19.0)) * 0.08;
 
-    // Compute blob influences (large radii for broad, smooth shapes)
-    float b1 = blob(st, c1, 0.65);
-    float b2 = blob(st, c2, 0.55);
-    float b3 = blob(st, c3, 0.50);
-    float b4 = blob(st, c4, 0.45);
-    float b5 = blob(st, c5, 0.40);
+    // Compute organic blob influences using warped coordinates
+    float b1 = blob(warpedST, c1, r1, 1.0);
+    float b2 = blob(warpedST, c2, r2, 2.7);
+    float b3 = blob(warpedST, c3, r3, 4.3);
+    float b4 = blob(warpedST, c4, r4, 6.1);
+    float b5 = blob(warpedST, c5, r5, 8.5);
+    float b6 = blob(warpedST, c6, r6, 10.9);
+    float b7 = blob(warpedST, c7, r7, 13.2);
 
-    // Color palette — soft cool tones with lavender and grey
-    vec3 light_blue  = vec3(0.749, 0.820, 1.0);    // #bfd1ff
-    vec3 muted_indigo = vec3(0.541, 0.580, 0.831);  // #8a94d4
-    vec3 light_grey  = vec3(0.890, 0.890, 0.890);   // #e3e3e3
-    vec3 cool_grey   = vec3(0.420, 0.447, 0.498);   // #6b7280
-    vec3 deep_purple = vec3(0.263, 0.243, 0.435);   // #433e6f
-    vec3 soft_mauve  = vec3(0.835, 0.749, 0.875);   // #d5bfdf
-    vec3 warm_white  = vec3(0.965, 0.957, 0.941);   // #f6f4f0
-    vec3 dusty_plum  = vec3(0.663, 0.553, 0.714);   // #a98db6
-    vec3 off_white   = vec3(0.976, 0.980, 0.984);   // #f9fafb
-    vec3 soft_beige  = vec3(0.918, 0.914, 0.902);   // #eae9e6
-    vec3 pure_white  = vec3(1.0, 1.0, 1.0);         // #ffffff
+    // Color palette
+    vec3 cPeriwinkle = vec3(0.749, 0.820, 1.0);    // #bfd1ff
+    vec3 cSlate      = vec3(0.541, 0.580, 0.831);  // #8a94d4
+    vec3 cSilver     = vec3(0.890, 0.890, 0.890);  // #e3e3e3
+    vec3 cGray       = vec3(0.420, 0.447, 0.502);  // #6b7280
+    vec3 cDeepPurple = vec3(0.263, 0.243, 0.435);  // #433e6f
+    vec3 cMauve      = vec3(0.835, 0.749, 0.875);  // #d5bfdf
+    vec3 cOffWhite   = vec3(0.965, 0.957, 0.941);  // #f6f4f0
+    vec3 cDustyPurp  = vec3(0.663, 0.553, 0.714);  // #a98db6
+    vec3 cSnow       = vec3(0.976, 0.980, 0.984);  // #f9fafb
+    vec3 cWarmGray   = vec3(0.918, 0.914, 0.902);  // #eae9e6
+    vec3 cWhite      = vec3(1.0, 1.0, 1.0);        // #ffffff
 
-    // Start from deep purple, layer blobs on top
-    vec3 color = deep_purple;
-    color = mix(color, muted_indigo, b1);
-    color = mix(color, light_blue, b2);
-    color = mix(color, soft_mauve, b3 * 0.9);
-    color = mix(color, warm_white, b4 * 0.7);
-    color = mix(color, dusty_plum, b5 * 0.5);
-
-    // Subtle cool grey accent blob
-    float b6 = blob(st, vec2(0.3 * aspect, 0.65) + mouse * 0.4 + vec2(-nx, ny * 0.6), 0.45);
-    color = mix(color, cool_grey, b6 * 0.35);
-
-    // Light grey / beige glow near bottom-center
-    float b7 = blob(st, vec2(0.4 * aspect, 0.15) + mouse * 0.5, 0.5);
-    color = mix(color, light_grey, b7 * 0.6);
-
-    // Off-white highlight near top
-    float b8 = blob(st, vec2(0.6 * aspect, 0.85) + mouse * 0.2 + vec2(nx * 0.3, -ny * 0.4), 0.4);
-    color = mix(color, off_white, b8 * 0.4);
+    // Layer colors — they melt into each other
+    vec3 color = cDeepPurple;
+    color = mix(color, cSlate, b1);
+    color = mix(color, cPeriwinkle, b2);
+    color = mix(color, cMauve, b3 * 0.9);
+    color = mix(color, cDustyPurp, b4 * 0.7);
+    color = mix(color, cSilver, b5 * 0.6);
+    color = mix(color, cOffWhite, b6 * 0.5);
+    color = mix(color, cSnow, b7 * 0.4);
 
     // Film grain / noise overlay
     float noise = snoise(uv * 500.0 + uTime * 3.0) * 0.5 + 0.5;
