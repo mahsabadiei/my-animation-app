@@ -84,13 +84,14 @@ const fragmentShader = /* glsl */ `
     float b4 = blob(st, c4, 0.45);
     float b5 = blob(st, c5, 0.40);
 
-    // Color palette matching the reference
+    // Color palette — warm original with a hint of green
     vec3 deep_brown  = vec3(0.40, 0.18, 0.07);
     vec3 warm_orange = vec3(0.88, 0.40, 0.05);
     vec3 golden      = vec3(0.92, 0.72, 0.10);
     vec3 soft_yellow = vec3(1.0, 0.90, 0.35);
     vec3 warm_white  = vec3(1.0, 0.96, 0.82);
     vec3 lavender    = vec3(0.85, 0.75, 0.88);
+    vec3 soft_green  = vec3(0.45, 0.72, 0.35);
 
     // Start from base brown, layer blobs on top
     vec3 color = deep_brown;
@@ -100,14 +101,26 @@ const fragmentShader = /* glsl */ `
     color = mix(color, warm_white, b4 * 0.7);
     color = mix(color, lavender, b5 * 0.5);
 
-    // Add a subtle secondary orange glow near bottom-center
-    float b6 = blob(st, vec2(0.4 * aspect, 0.15) + mouse * 0.5, 0.5);
-    color = mix(color, warm_orange * 1.1, b6 * 0.6);
+    // Subtle green accent blob
+    float b6 = blob(st, vec2(0.3 * aspect, 0.65) + mouse * 0.4 + vec2(-nx, ny * 0.6), 0.45);
+    color = mix(color, soft_green, b6 * 0.35);
 
-    // Fine grid overlay
-    vec2 grid = fract(st * 50.0);
-    float gridLine = smoothstep(0.0, 0.025, grid.x) * smoothstep(0.0, 0.025, grid.y);
-    color = mix(color * 0.94, color, gridLine);
+    // Add a subtle secondary orange glow near bottom-center
+    float b7 = blob(st, vec2(0.4 * aspect, 0.15) + mouse * 0.5, 0.5);
+    color = mix(color, warm_orange * 1.1, b7 * 0.6);
+
+    // Film grain / noise overlay
+    float noise = snoise(uv * 500.0 + uTime * 3.0) * 0.5 + 0.5;
+    noise = mix(0.92, 1.08, noise);
+    color *= noise;
+
+    // Uniform square grid — fixed pixel size cells
+    float cellSize = 30.0; // pixels per cell
+    vec2 gridCoord = gl_FragCoord.xy / cellSize;
+    vec2 gridFrac = fract(gridCoord);
+    float lineW = 1.0 / cellSize; // 1px line
+    float gridLine = smoothstep(0.0, lineW, gridFrac.x) * smoothstep(0.0, lineW, gridFrac.y);
+    color = mix(color * 0.88, color, gridLine);
 
     gl_FragColor = vec4(color, 1.0);
   }
