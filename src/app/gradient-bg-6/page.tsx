@@ -37,10 +37,6 @@ const cards = [
 export default function GradientBg6Page() {
   return (
     <main className="min-h-screen bg-white px-6 py-16">
-      <h2 className="mb-10 text-4xl font-light text-gray-900">
-        Success Stories
-      </h2>
-
       {/* Row 1 — Our custom watery cards */}
       <div className="grid grid-cols-1 gap-10 md:grid-cols-3">
         {cards.map((card, i) => (
