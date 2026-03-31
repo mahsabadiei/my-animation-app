@@ -84,18 +84,18 @@ const fragmentShader = /* glsl */ `
     float b4 = blob(st, c4, 0.45);
     float b5 = blob(st, c5, 0.40);
 
-    // Color palette — soft cool tones with lavender and grey
-    vec3 light_blue  = vec3(0.749, 0.820, 1.0);    // #bfd1ff
-    vec3 muted_indigo = vec3(0.541, 0.580, 0.831);  // #8a94d4
-    vec3 light_grey  = vec3(0.890, 0.890, 0.890);   // #e3e3e3
-    vec3 cool_grey   = vec3(0.420, 0.447, 0.498);   // #6b7280
-    vec3 deep_purple = vec3(0.263, 0.243, 0.435);   // #433e6f
-    vec3 soft_mauve  = vec3(0.835, 0.749, 0.875);   // #d5bfdf
-    vec3 warm_white  = vec3(0.965, 0.957, 0.941);   // #f6f4f0
-    vec3 dusty_plum  = vec3(0.663, 0.553, 0.714);   // #a98db6
-    vec3 off_white   = vec3(0.976, 0.980, 0.984);   // #f9fafb
-    vec3 soft_beige  = vec3(0.918, 0.914, 0.902);   // #eae9e6
-    vec3 pure_white  = vec3(1.0, 1.0, 1.0);         // #ffffff
+    // Color palette — teal and sage tones
+    vec3 light_blue  = vec3(0.749, 0.765, 0.694);   // #BFC3B1
+    vec3 muted_indigo = vec3(0.373, 0.557, 0.608);  // #5F8E9B
+    vec3 light_grey  = vec3(0.835, 0.847, 0.800);   // #D5D8CC
+    vec3 cool_grey   = vec3(0.239, 0.455, 0.533);   // #3D7488
+    vec3 deep_purple = vec3(0.180, 0.404, 0.498);   // #2E677F
+    vec3 soft_mauve  = vec3(0.545, 0.690, 0.722);   // #8BB0B8
+    vec3 warm_white  = vec3(0.910, 0.918, 0.886);   // #E8EAE2
+    vec3 dusty_plum  = vec3(0.302, 0.478, 0.541);   // #4D7A8A
+    vec3 off_white   = vec3(0.949, 0.953, 0.933);   // #F2F3EE
+    vec3 soft_beige  = vec3(0.816, 0.831, 0.784);   // #D0D4C8
+    vec3 pure_white  = vec3(0.969, 0.973, 0.957);   // #F7F8F4
 
     // Start from deep purple, layer blobs on top
     vec3 color = deep_purple;

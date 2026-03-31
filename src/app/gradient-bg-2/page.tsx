@@ -118,18 +118,18 @@ const fragmentShader = /* glsl */ `
     float b6 = blob(warpedST, c6, r6, 10.9);
     float b7 = blob(warpedST, c7, r7, 13.2);
 
-    // Color palette
-    vec3 cPeriwinkle = vec3(0.749, 0.820, 1.0);    // #bfd1ff
-    vec3 cSlate      = vec3(0.541, 0.580, 0.831);  // #8a94d4
-    vec3 cSilver     = vec3(0.890, 0.890, 0.890);  // #e3e3e3
-    vec3 cGray       = vec3(0.420, 0.447, 0.502);  // #6b7280
-    vec3 cDeepPurple = vec3(0.263, 0.243, 0.435);  // #433e6f
-    vec3 cMauve      = vec3(0.835, 0.749, 0.875);  // #d5bfdf
-    vec3 cOffWhite   = vec3(0.965, 0.957, 0.941);  // #f6f4f0
-    vec3 cDustyPurp  = vec3(0.663, 0.553, 0.714);  // #a98db6
-    vec3 cSnow       = vec3(0.976, 0.980, 0.984);  // #f9fafb
-    vec3 cWarmGray   = vec3(0.918, 0.914, 0.902);  // #eae9e6
-    vec3 cWhite      = vec3(1.0, 1.0, 1.0);        // #ffffff
+    // Color palette — teal and sage tones
+    vec3 cPeriwinkle = vec3(0.749, 0.765, 0.694);   // #BFC3B1
+    vec3 cSlate      = vec3(0.373, 0.557, 0.608);  // #5F8E9B
+    vec3 cSilver     = vec3(0.835, 0.847, 0.800);  // #D5D8CC
+    vec3 cGray       = vec3(0.239, 0.455, 0.533);  // #3D7488
+    vec3 cDeepPurple = vec3(0.180, 0.404, 0.498);  // #2E677F
+    vec3 cMauve      = vec3(0.545, 0.690, 0.722);  // #8BB0B8
+    vec3 cOffWhite   = vec3(0.910, 0.918, 0.886);  // #E8EAE2
+    vec3 cDustyPurp  = vec3(0.302, 0.478, 0.541);  // #4D7A8A
+    vec3 cSnow       = vec3(0.949, 0.953, 0.933);  // #F2F3EE
+    vec3 cWarmGray   = vec3(0.816, 0.831, 0.784);  // #D0D4C8
+    vec3 cWhite      = vec3(0.969, 0.973, 0.957);  // #F7F8F4
 
     // Layer colors — they melt into each other
     vec3 color = cDeepPurple;

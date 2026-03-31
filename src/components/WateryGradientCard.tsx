@@ -4,8 +4,6 @@ import { useRef, useMemo, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
-const globalMouse = new THREE.Vector2(0, 0);
-
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
   void main() {
@@ -18,10 +16,12 @@ const fragmentShader = /* glsl */ `
   uniform float uTime;
   uniform vec2 uMouse;
   uniform vec2 uResolution;
+  uniform vec3 uColorDark;
+  uniform vec3 uColorMid;
+  uniform vec3 uColorLight;
 
   varying vec2 vUv;
 
-  // Simplex 2D noise
   vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
   vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
   vec3 permute(vec3 x) { return mod289(((x * 34.0) + 1.0) * x); }
@@ -48,40 +48,25 @@ const fragmentShader = /* glsl */ `
     return 130.0 * dot(m, g);
   }
 
-  // Wavy height field — layered sine waves distorted by noise
-  // This is what creates the flowing water/silk wave shapes
   float waveHeight(vec2 p, float t) {
     float h = 0.0;
-
-    // Noise-based distortion of the wave coordinates
     float nx = snoise(p * 0.4 + t * 0.03) * 0.4;
     float ny = snoise(p * 0.35 + vec2(7.0, 3.0) + t * 0.025) * 0.4;
     vec2 wp = p + vec2(nx, ny);
 
-    // Wave 1 — large diagonal sweep (dominant wave direction)
     float wave1 = sin(wp.x * 1.8 + wp.y * 1.2 + t * 0.15 + snoise(wp * 0.5 + t * 0.04) * 1.5);
     h += wave1 * 0.35;
-
-    // Wave 2 — counter-diagonal, slightly faster
     float wave2 = sin(wp.x * 1.0 - wp.y * 2.2 + t * 0.12 + snoise(wp * 0.6 + vec2(3.0, 0.0) + t * 0.05) * 1.2);
     h += wave2 * 0.25;
-
-    // Wave 3 — horizontal undulation
     float wave3 = sin(wp.x * 2.5 + t * 0.18 + snoise(wp * 0.45 + vec2(0.0, 5.0) + t * 0.03) * 1.8);
     h += wave3 * 0.18;
-
-    // Wave 4 — slow vertical swell
     float wave4 = sin(wp.y * 1.5 + t * 0.08 + snoise(wp * 0.3 + vec2(10.0, 2.0) + t * 0.02) * 2.0);
     h += wave4 * 0.15;
-
-    // Wave 5 — fine ripples for detail
     float wave5 = sin(wp.x * 4.0 + wp.y * 3.0 + t * 0.25 + snoise(wp * 0.8 + t * 0.06) * 1.0);
     h += wave5 * 0.07;
-
     return h;
   }
 
-  // Compute surface normal from height via central differences
   vec3 calcNormal(vec2 p, float t, float eps) {
     float hL = waveHeight(p - vec2(eps, 0.0), t);
     float hR = waveHeight(p + vec2(eps, 0.0), t);
@@ -101,11 +86,9 @@ const fragmentShader = /* glsl */ `
     vec2 st = uv;
     st.x *= aspect;
 
-    // Mouse in UV space
     vec2 mouseUV = uMouse * 0.5 + 0.5;
     vec2 mouseST = vec2(mouseUV.x * aspect, mouseUV.y);
 
-    // Cursor interaction — displaces and swirls the wave field
     vec2 toMouse = st - mouseST;
     float mouseDist = length(toMouse);
     float influence = exp(-mouseDist * mouseDist * 2.5) * 0.2;
@@ -116,65 +99,55 @@ const fragmentShader = /* glsl */ `
 
     float t = uTime;
 
-    // Get wave height and surface normal
     float h = waveHeight(st, t);
     vec3 N = calcNormal(st, t, 0.004);
 
-    // Lighting — from upper-right to match reference
     vec3 lightDir = normalize(vec3(0.4, 0.5, 0.8));
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
     vec3 halfVec = normalize(lightDir + viewDir);
 
-    // Diffuse — half-lambert for gentle shadows
+    // Gentle diffuse — narrow range to avoid bright spots
     float diffuse = max(dot(N, lightDir), 0.0);
-    diffuse = diffuse * 0.55 + 0.45;
+    diffuse = diffuse * 0.3 + 0.7;
 
-    // Specular — sharp silk highlights on wave crests
-    float spec = pow(max(dot(N, halfVec), 0.0), 50.0);
-    // Broad satin sheen
-    float spec2 = pow(max(dot(N, halfVec), 0.0), 10.0);
+    // Subtle spec — just enough to show wave shape
+    float spec = pow(max(dot(N, halfVec), 0.0), 80.0);
+    float spec2 = pow(max(dot(N, halfVec), 0.0), 20.0);
 
-    // Color palette from gradient-bg-2
-    vec3 cPeriwinkle = vec3(0.749, 0.765, 0.694);   // #BFC3B1
-    vec3 cSlate      = vec3(0.373, 0.557, 0.608);  // #5F8E9B
-    vec3 cDeepPurple = vec3(0.180, 0.404, 0.498);  // #2E677F
-    vec3 cMauve      = vec3(0.545, 0.690, 0.722);  // #8BB0B8
-    vec3 cOffWhite   = vec3(0.910, 0.918, 0.886);  // #E8EAE2
-    vec3 cDustyPurp  = vec3(0.302, 0.478, 0.541);  // #4D7A8A
-    vec3 cSilver     = vec3(0.835, 0.847, 0.800);  // #D5D8CC
-    vec3 cSnow       = vec3(0.949, 0.953, 0.933);  // #F2F3EE
+    // Derive palette from 3 input colors — stay close to the inputs, no white mixing
+    vec3 cDark    = uColorDark;
+    vec3 cMid     = uColorMid;
+    vec3 cLight   = uColorLight;
+    vec3 cDarkMid = mix(cDark, cMid, 0.5);
+    vec3 cMauve   = mix(cMid, cLight, 0.5);
+    vec3 cSilver  = mix(cLight, cMid, 0.2);
+    vec3 cSnow    = mix(cLight, cMid, 0.1);
 
-    // Map wave height to 0..1
     float hNorm = clamp(h * 0.5 + 0.5, 0.0, 1.0);
 
-    // Base color — deep in wave troughs, brighter on crests
-    vec3 baseColor = mix(cDeepPurple, cSlate, smoothstep(0.1, 0.5, hNorm));
-    baseColor = mix(baseColor, cPeriwinkle, smoothstep(0.4, 0.75, hNorm));
-    baseColor = mix(baseColor, cMauve, smoothstep(0.7, 0.95, hNorm) * 0.45);
+    vec3 baseColor = mix(cDark, cMid, smoothstep(0.1, 0.5, hNorm));
+    baseColor = mix(baseColor, cLight, smoothstep(0.45, 0.8, hNorm));
+    baseColor = mix(baseColor, cMauve, smoothstep(0.7, 0.95, hNorm) * 0.3);
 
-    // Add variation with a second wave sample offset in space
     float h2 = waveHeight(st + vec2(2.0, 1.5), t * 0.7);
     float h2Norm = clamp(h2 * 0.5 + 0.5, 0.0, 1.0);
-    baseColor = mix(baseColor, cDustyPurp, smoothstep(0.25, 0.55, h2Norm) * smoothstep(0.55, 0.25, hNorm) * 0.5);
+    baseColor = mix(baseColor, cDarkMid, smoothstep(0.25, 0.55, h2Norm) * smoothstep(0.55, 0.25, hNorm) * 0.5);
 
-    // Apply diffuse lighting
     vec3 color = baseColor * diffuse;
 
-    // Specular highlights — pearly white on wave crests
-    vec3 specColor = mix(cSilver, cSnow, 0.6);
-    color += specColor * spec * 0.6;
-    color += cOffWhite * spec2 * 0.18;
+    // Very subtle specular — tinted by the palette, not white
+    vec3 specColor = mix(cSilver, cSnow, 0.5);
+    color += specColor * spec * 0.15;
+    color += cLight * spec2 * 0.06;
 
-    // Rim light for depth
+    // Soft rim — tinted by mid color
     float rim = 1.0 - max(dot(N, viewDir), 0.0);
     rim = pow(rim, 3.0);
-    color += cPeriwinkle * rim * 0.15;
+    color += cMid * rim * 0.08;
 
-    // Ambient occlusion in troughs
     float ao = smoothstep(0.0, 0.35, hNorm);
     color *= mix(0.65, 1.0, ao);
 
-    // Film grain / noise overlay
     float noise = snoise(uv * 500.0 + t * 3.0) * 0.5 + 0.5;
     noise = mix(0.92, 1.08, noise);
     color *= noise;
@@ -183,7 +156,14 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-function WateryMesh() {
+interface WateryCardMeshProps {
+  colorDark: [number, number, number];
+  colorMid: [number, number, number];
+  colorLight: [number, number, number];
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function WateryCardMesh({ colorDark, colorMid, colorLight, containerRef }: WateryCardMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { size } = useThree();
 
@@ -192,6 +172,9 @@ function WateryMesh() {
       uTime: { value: 0 },
       uMouse: { value: new THREE.Vector2(0, 0) },
       uResolution: { value: new THREE.Vector2(size.width, size.height) },
+      uColorDark: { value: new THREE.Vector3(...colorDark) },
+      uColorMid: { value: new THREE.Vector3(...colorMid) },
+      uColorLight: { value: new THREE.Vector3(...colorLight) },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -200,21 +183,30 @@ function WateryMesh() {
   const targetMouse = useRef(new THREE.Vector2(0, 0));
 
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
     const onMouseMove = (e: MouseEvent) => {
-      globalMouse.set(
-        (e.clientX / window.innerWidth) * 2 - 1,
-        -((e.clientY / window.innerHeight) * 2 - 1),
-      );
+      const rect = el.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+      targetMouse.current.set(x, y);
     };
-    window.addEventListener("mousemove", onMouseMove);
-    return () => window.removeEventListener("mousemove", onMouseMove);
-  }, []);
+    const onMouseLeave = () => {
+      targetMouse.current.set(0, 0);
+    };
+
+    el.addEventListener("mousemove", onMouseMove);
+    el.addEventListener("mouseleave", onMouseLeave);
+    return () => {
+      el.removeEventListener("mousemove", onMouseMove);
+      el.removeEventListener("mouseleave", onMouseLeave);
+    };
+  }, [containerRef]);
 
   useFrame(({ clock }) => {
     uniforms.uTime.value = clock.getElapsedTime();
     uniforms.uResolution.value.set(size.width, size.height);
-    targetMouse.current.copy(globalMouse);
-    // Smooth follow — slightly slower for a fluid feel
     uniforms.uMouse.value.lerp(targetMouse.current, 0.08);
   });
 
@@ -230,16 +222,40 @@ function WateryMesh() {
   );
 }
 
-export default function WateryGradient() {
+interface WateryGradientCardProps {
+  colorDark: [number, number, number];
+  colorMid: [number, number, number];
+  colorLight: [number, number, number];
+  children?: React.ReactNode;
+}
+
+export default function WateryGradientCard({
+  colorDark,
+  colorMid,
+  colorLight,
+  children,
+}: WateryGradientCardProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="fixed inset-0 w-full h-full">
+    <div ref={containerRef} className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: "4 / 3" }}>
       <Canvas
         gl={{ antialias: true, alpha: false }}
         camera={{ position: [0, 0, 1] }}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "100%", position: "absolute", inset: 0 }}
       >
-        <WateryMesh />
+        <WateryCardMesh
+          colorDark={colorDark}
+          colorMid={colorMid}
+          colorLight={colorLight}
+          containerRef={containerRef}
+        />
       </Canvas>
+      {children && (
+        <div className="relative z-10 flex h-full w-full items-center justify-center">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

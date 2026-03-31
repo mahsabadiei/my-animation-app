@@ -136,14 +136,14 @@ const fragmentShader = /* glsl */ `
     float spec2 = pow(max(dot(N, halfVec), 0.0), 10.0);
 
     // Color palette from gradient-bg-2
-    vec3 cPeriwinkle = vec3(0.749, 0.820, 1.0);
-    vec3 cSlate      = vec3(0.541, 0.580, 0.831);
-    vec3 cDeepPurple = vec3(0.263, 0.243, 0.435);
-    vec3 cMauve      = vec3(0.835, 0.749, 0.875);
-    vec3 cOffWhite   = vec3(0.965, 0.957, 0.941);
-    vec3 cDustyPurp  = vec3(0.663, 0.553, 0.714);
-    vec3 cSilver     = vec3(0.890, 0.890, 0.890);
-    vec3 cSnow       = vec3(0.976, 0.980, 0.984);
+    vec3 cPeriwinkle = vec3(0.749, 0.765, 0.694);   // #BFC3B1
+    vec3 cSlate      = vec3(0.373, 0.557, 0.608);  // #5F8E9B
+    vec3 cDeepPurple = vec3(0.180, 0.404, 0.498);  // #2E677F
+    vec3 cMauve      = vec3(0.545, 0.690, 0.722);  // #8BB0B8
+    vec3 cOffWhite   = vec3(0.910, 0.918, 0.886);  // #E8EAE2
+    vec3 cDustyPurp  = vec3(0.302, 0.478, 0.541);  // #4D7A8A
+    vec3 cSilver     = vec3(0.835, 0.847, 0.800);  // #D5D8CC
+    vec3 cSnow       = vec3(0.949, 0.953, 0.933);  // #F2F3EE
 
     float hNorm = clamp(h * 0.5 + 0.5, 0.0, 1.0);
 
@@ -172,9 +172,10 @@ const fragmentShader = /* glsl */ `
     color *= mix(1.0, 1.15, mag * 0.5);
 
 
-    // Subtle grain
-    float grain = snoise(uv * 500.0 + t * 2.0) * 0.5 + 0.5;
-    color *= mix(0.98, 1.02, grain);
+    // Film grain / noise overlay
+    float noise = snoise(uv * 500.0 + t * 3.0) * 0.5 + 0.5;
+    noise = mix(0.92, 1.08, noise);
+    color *= noise;
 
     gl_FragColor = vec4(color, 1.0);
   }
